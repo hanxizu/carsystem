@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import webhook from './routes/webhook';
+import webhook from './routes/webhook.js';  // 添加 .js 扩展名
+
 
 const app = new Hono();
 

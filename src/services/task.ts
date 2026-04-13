@@ -1,7 +1,6 @@
-import { supabase } from '../db/supabase';
-import { TaskData, SessionData } from '../types';
-import { generateTaskId, detectVehicleType, detectOperationType, detectBusinessType } from '../utils/helpers';
-
+import { supabase } from '../db/supabase.js';
+import { TaskData, SessionData } from '../types/index.js';
+import { generateTaskId, detectVehicleType, detectOperationType, detectBusinessType } from '../utils/helpers.js';
 class TaskService {
   async createTask(session: SessionData): Promise<string> {
     const taskId = generateTaskId(session.vehicleInfo!.plate, session.vehicleInfo!.ownerName);
