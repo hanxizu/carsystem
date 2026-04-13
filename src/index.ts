@@ -2,12 +2,56 @@ import 'dotenv/config';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import * as crypto from 'crypto';
 
 const app = new Hono();
 
 // 中间件
 app.use('*', logger());
 app.use('*', cors());
+
+// ========== 企业微信加解密工具函数 ==========
+
+/**
+ * 解密企业微信消息
+ */
+function decryptMsg(encryptMsg: string, encodingAESKey: string, corpId: string): string {
+  // 解码 AESKey
+  const AESKey = Buffer.from(encodingAESKey + '=', 'base64');
+  const iv = AESKey.subarray(0, 16);
+  
+  // 解密
+  const decipher = crypto.createDecipheriv('aes-256-cbc', AESKey, iv);
+  decipher.setAutoPadding(false);
+  
+  let decrypted = Buffer.concat([decipher.update(Buffer.from(encryptMsg, 'base64')), decipher.final()]);
+  
+  // 去除补位
+  const pad = decrypted[decrypted.length - 1];
+  decrypted = decrypted.subarray(0, decrypted.length - pad);
+  
+  // 解析内容：16字节随机数 + 4字节消息长度 + 消息内容 + CorpId
+  const msgLen = decrypted.readUInt32BE(16);
+  const msg = decrypted.subarray(20, 20 + msgLen).toString();
+  const receivedCorpId = decrypted.subarray(20 + msgLen).toString();
+  
+  if (receivedCorpId !== corpId) {
+    throw new Error('CorpId 不匹配');
+  }
+  
+  return msg;
+}
+
+/**
+ * 验证企业微信签名
+ */
+function verifySignature(token: string, timestamp: string, nonce: string, encryptMsg: string, signature: string): boolean {
+  const sortList = [token, timestamp, nonce, encryptMsg].sort();
+  const sha1 = crypto.createHash('sha1');
+  sha1.update(sortList.join(''));
+  const calculatedSignature = sha1.digest('hex');
+  return calculatedSignature === signature;
+}
 
 // ========== 基础端点 ==========
 app.get('/', (c) => {
@@ -23,6 +67,8 @@ app.get('/health', (c) => {
   const checks = {
     supabase: !!process.env.SUPABASE_URL,
     wework: !!process.env.WEWORK_CORP_ID,
+    wework_token: !!process.env.WEWORK_TOKEN,
+    wework_aes_key: !!process.env.WEWORK_ENCODING_AES_KEY,
     tencent_ocr: !!process.env.TENCENT_SECRET_ID
   };
   
@@ -63,16 +109,130 @@ app.get('/test-db', async (c) => {
   }
 });
 
-app.post('/api/webhook', async (c) => {
+// ========== 企业微信 Webhook（支持验证和消息接收）==========
+
+/**
+ * GET 请求：企业微信 URL 验证
+ * 企业微信在配置回调地址时会发送 GET 请求验证
+ */
+app.get('/api/webhook', async (c) => {
   try {
-    const body = await c.req.json();
-    console.log('收到回调:', JSON.stringify(body, null, 2));
-    return c.json({ success: true, message: 'Webhook received' });
+    // 获取验证参数
+    const msg_signature = c.req.query('msg_signature');
+    const timestamp = c.req.query('timestamp');
+    const nonce = c.req.query('nonce');
+    const echostr = c.req.query('echostr');
+    
+    console.log('收到验证请求:', { msg_signature, timestamp, nonce, echostr: echostr?.substring(0, 20) + '...' });
+    
+    // 获取配置
+    const token = process.env.WEWORK_TOKEN;
+    const encodingAESKey = process.env.WEWORK_ENCODING_AES_KEY;
+    const corpId = process.env.WEWORK_CORP_ID;
+    
+    // 检查配置
+    if (!token || !encodingAESKey || !corpId) {
+      console.error('缺少必要配置: WEWORK_TOKEN, WEWORK_ENCODING_AES_KEY, WEWORK_CORP_ID');
+      return c.text('配置错误', 500);
+    }
+    
+    // 验证签名
+    if (!verifySignature(token, timestamp!, nonce!, echostr!, msg_signature!)) {
+      console.error('签名验证失败');
+      return c.text('签名验证失败', 403);
+    }
+    
+    // 解密 echostr
+    const decryptedEchostr = decryptMsg(echostr!, encodingAESKey, corpId);
+    console.log('验证成功，返回:', decryptedEchostr);
+    
+    // 关键：必须返回纯文本，不能带引号、换行等
+    return c.text(decryptedEchostr);
+    
   } catch (error: any) {
-    console.error('Webhook error:', error);
-    return c.json({ success: false, error: error.message }, 500);
+    console.error('验证处理错误:', error);
+    return c.text('验证失败: ' + error.message, 500);
   }
 });
+
+/**
+ * POST 请求：接收企业微信推送的消息
+ */
+app.post('/api/webhook', async (c) => {
+  try {
+    // 获取请求参数
+    const msg_signature = c.req.query('msg_signature');
+    const timestamp = c.req.query('timestamp');
+    const nonce = c.req.query('nonce');
+    
+    // 获取请求体（XML 格式）
+    const bodyText = await c.req.text();
+    console.log('收到消息原始内容:', bodyText);
+    
+    // 简单解析 XML 获取 Encrypt 节点
+    const encryptMatch = bodyText.match(/<Encrypt><!\[CDATA\[(.*?)\]\]><\/Encrypt>/);
+    if (!encryptMatch) {
+      console.error('无法解析加密消息');
+      return c.text('success'); // 返回 success 避免重试
+    }
+    
+    const encryptMsg = encryptMatch[1];
+    
+    // 获取配置
+    const token = process.env.WEWORK_TOKEN;
+    const encodingAESKey = process.env.WEWORK_ENCODING_AES_KEY;
+    const corpId = process.env.WEWORK_CORP_ID;
+    
+    if (!token || !encodingAESKey || !corpId) {
+      console.error('缺少必要配置');
+      return c.text('success');
+    }
+    
+    // 验证签名
+    if (!verifySignature(token, timestamp!, nonce!, encryptMsg, msg_signature!)) {
+      console.error('消息签名验证失败');
+      return c.text('success');
+    }
+    
+    // 解密消息
+    const decryptedMsg = decryptMsg(encryptMsg, encodingAESKey, corpId);
+    console.log('解密后的消息:', decryptedMsg);
+    
+    // 解析 XML 获取消息内容
+    const contentMatch = decryptedMsg.match(/<Content><!\[CDATA\[(.*?)\]\]><\/Content>/);
+    const fromUserMatch = decryptedMsg.match(/<FromUserName><!\[CDATA\[(.*?)\]\]><\/FromUserName>/);
+    
+    if (contentMatch && fromUserMatch) {
+      const userId = fromUserMatch[1];
+      const content = contentMatch[1];
+      console.log(`用户 ${userId} 发送: ${content}`);
+      
+      // 这里调用您的业务逻辑处理
+      // 可以调用 taskService、weworkService 等
+      
+      // 异步处理业务逻辑（避免超时）
+      setTimeout(async () => {
+        try {
+          // 导入服务并处理消息
+          const { weworkService } = await import('./services/wework.js');
+          await weworkService.sendMessage(userId, `收到消息: ${content}`);
+        } catch (err) {
+          console.error('处理消息失败:', err);
+        }
+      }, 0);
+    }
+    
+    // 必须返回 "success" 字符串
+    return c.text('success');
+    
+  } catch (error: any) {
+    console.error('消息处理错误:', error);
+    // 返回 success 避免企业微信重复推送
+    return c.text('success');
+  }
+});
+
+// ========== 其他业务端点 ==========
 
 app.post('/api/quote-callback', async (c) => {
   try {
@@ -137,9 +297,7 @@ app.post('/api/ext/activate', (c) => {
 });
 
 app.get('/favicon.ico', (c) => {
-  // 设置缓存控制头，减少请求
   c.header('Cache-Control', 'public, max-age=86400');
-  // 返回 204 无内容状态码
   return c.body(null, 204);
 });
 
@@ -160,5 +318,4 @@ app.onError((err, c) => {
   }, 500);
 });
 
-// 直接导出 app（不要使用 serve()）
 export default app;
