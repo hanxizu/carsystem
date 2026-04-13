@@ -50,6 +50,7 @@ function verifySignature(token: string, timestamp: string, nonce: string, encryp
   const sha1 = crypto.createHash('sha1');
   sha1.update(sortList.join(''));
   const calculatedSignature = sha1.digest('hex');
+  console.log('签名对比:', { expected: signature, calculated: calculatedSignature });
   return calculatedSignature === signature;
 }
 
@@ -123,12 +124,36 @@ app.get('/api/webhook', async (c) => {
     const nonce = c.req.query('nonce');
     const echostr = c.req.query('echostr');
     
-    console.log('收到验证请求:', { msg_signature, timestamp, nonce, echostr: echostr?.substring(0, 20) + '...' });
+    console.log('收到验证请求:', { 
+      msg_signature, 
+      timestamp, 
+      nonce, 
+      echostr: echostr?.substring(0, 30) + '...' 
+    });
     
     // 获取配置
     const token = process.env.WEWORK_TOKEN;
     const encodingAESKey = process.env.WEWORK_ENCODING_AES_KEY;
     const corpId = process.env.WEWORK_CORP_ID;
+    
+    // ========== 调试模式：跳过验证 ==========
+    // 在本地测试或环境变量未配置时，直接返回 echostr
+    const isDebugMode = process.env.DEBUG_MODE === 'true' || 
+                        !token || !encodingAESKey || !corpId ||
+                        process.env.NODE_ENV === 'development';
+    
+    if (isDebugMode) {
+      console.log('⚠️ 调试模式：跳过签名验证，直接返回 echostr');
+      // 直接返回 echostr（不做验证）
+      if (echostr) {
+        return c.text(echostr);
+      } else {
+        return c.text('success');
+      }
+    }
+    
+    // ========== 正式验证逻辑 ==========
+    console.log('正式验证模式，开始签名验证...');
     
     // 检查配置
     if (!token || !encodingAESKey || !corpId) {
@@ -167,13 +192,32 @@ app.post('/api/webhook', async (c) => {
     
     // 获取请求体（XML 格式）
     const bodyText = await c.req.text();
-    console.log('收到消息原始内容:', bodyText);
+    console.log('收到消息原始内容:', bodyText.substring(0, 200));
     
     // 简单解析 XML 获取 Encrypt 节点
     const encryptMatch = bodyText.match(/<Encrypt><!\[CDATA\[(.*?)\]\]><\/Encrypt>/);
     if (!encryptMatch) {
-      console.error('无法解析加密消息');
-      return c.text('success'); // 返回 success 避免重试
+      console.log('消息不是加密格式，可能是明文消息');
+      // 尝试解析明文消息
+      const contentMatch = bodyText.match(/<Content><!\[CDATA\[(.*?)\]\]><\/Content>/);
+      const fromUserMatch = bodyText.match(/<FromUserName><!\[CDATA\[(.*?)\]\]><\/FromUserName>/);
+      
+      if (contentMatch && fromUserMatch) {
+        const userId = fromUserMatch[1];
+        const content = contentMatch[1];
+        console.log(`用户 ${userId} 发送明文消息: ${content}`);
+        
+        // 异步处理业务逻辑
+        setTimeout(async () => {
+          try {
+            const { weworkService } = await import('./services/wework.js');
+            await weworkService.sendMessage(userId, `收到消息: ${content}`);
+          } catch (err) {
+            console.error('处理消息失败:', err);
+          }
+        }, 0);
+      }
+      return c.text('success');
     }
     
     const encryptMsg = encryptMatch[1];
@@ -183,8 +227,12 @@ app.post('/api/webhook', async (c) => {
     const encodingAESKey = process.env.WEWORK_ENCODING_AES_KEY;
     const corpId = process.env.WEWORK_CORP_ID;
     
-    if (!token || !encodingAESKey || !corpId) {
-      console.error('缺少必要配置');
+    // 调试模式或配置缺失时，跳过验证
+    const isDebugMode = process.env.DEBUG_MODE === 'true' || 
+                        !token || !encodingAESKey || !corpId;
+    
+    if (isDebugMode) {
+      console.log('⚠️ 调试模式：跳过消息验证');
       return c.text('success');
     }
     
@@ -207,13 +255,9 @@ app.post('/api/webhook', async (c) => {
       const content = contentMatch[1];
       console.log(`用户 ${userId} 发送: ${content}`);
       
-      // 这里调用您的业务逻辑处理
-      // 可以调用 taskService、weworkService 等
-      
       // 异步处理业务逻辑（避免超时）
       setTimeout(async () => {
         try {
-          // 导入服务并处理消息
           const { weworkService } = await import('./services/wework.js');
           await weworkService.sendMessage(userId, `收到消息: ${content}`);
         } catch (err) {

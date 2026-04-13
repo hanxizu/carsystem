@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { app } from './src/index';
+import app from './src/index';
 
 // 模拟企业微信验证请求
 async function testWebhook() {
