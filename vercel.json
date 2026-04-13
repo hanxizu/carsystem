@@ -1,19 +1,9 @@
 {
   "version": 2,
-  "functions": {
-    "src/index.ts": {
-      "maxDuration": 10,
-      "memory": 1024,
-      "runtime": "nodejs20.x"
-    }
-  },
   "routes": [
     {
       "src": "/(.*)",
       "dest": "src/index.ts"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
