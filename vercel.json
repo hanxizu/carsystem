@@ -5,7 +5,7 @@
       "src": "src/index.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["src/**/*"],
+        "includeFiles": ["src/**/*.ts", "src/**/*.js"],
         "excludeFiles": ["node_modules/**/*"]
       }
     }
@@ -16,7 +16,13 @@
       "dest": "src/index.ts"
     }
   ],
+  "functions": {
+    "src/index.ts": {
+      "maxDuration": 10,
+      "memory": 1024
+    }
+  },
   "env": {
-    "NODE_VERSION": "20.x"
+    "NODE_ENV": "production"
   }
 }

@@ -4,21 +4,22 @@
   "type": "module",
   "scripts": {
     "dev": "node --import tsx src/index.ts",
-    "dev:watch": "node --import tsx --watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "vercel-build": "npm run build"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.14",
     "@supabase/supabase-js": "^2.39.0",
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
-    "hono": "^4.12.12"
+    "hono": "^3.12.12"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
