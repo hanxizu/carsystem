@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
-import { weworkService } from '../services/wework.js';
-import { ocrService } from '../services/ocr.js';
-import { taskService } from '../services/task.js';
-import { routeService } from '../services/route.js';
-import { SessionData } from '../types/index.js';
-import { generateTaskId } from '../utils/helpers.js';
+import { weworkService } from '../services/wework';
+import { ocrService } from '../services/ocr';
+import { taskService } from '../services/task';
+import { routeService } from '../services/route';
+import { SessionData } from '../types/index';
+import { generateTaskId } from '../utils/helpers';
 const sessions = new Map<string, SessionData>();
 const imageStore = new Map<string, Buffer>();
 

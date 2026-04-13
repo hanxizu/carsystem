@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { VehicleInfo } from '../types/index.js';
+import { VehicleInfo } from '../types/index';
 
 class OCRService {
   async recognizeDrivingLicense(imageBuffer: Buffer): Promise<VehicleInfo> {

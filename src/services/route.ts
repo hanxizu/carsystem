@@ -1,6 +1,6 @@
-import { TaskData } from '../types/index.js';
-import { extractCityFromPlate } from '../utils/helpers.js';
-import { supabase } from '../db/supabase.js';
+import { TaskData } from '../types/index';
+import { extractCityFromPlate } from '../utils/helpers';
+import { supabase } from '../db/supabase';
 class RouteService {
   async getChannels(task: TaskData): Promise<any[]> {
     const city = extractCityFromPlate(task.plate);

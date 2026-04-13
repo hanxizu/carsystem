@@ -1,5 +1,5 @@
 
-import { TaskData } from "../types/index.js";
+import { TaskData } from "../types/index";
 
 
 
