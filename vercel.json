@@ -1,27 +1,18 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "src/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["src/**/*.ts", "src/**/*.js"],
-        "excludeFiles": ["node_modules/**/*"]
-      }
+  "functions": {
+    "src/index.ts": {
+      "maxDuration": 10,
+      "memory": 1024,
+      "runtime": "nodejs20.x"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/(.*)",
       "dest": "src/index.ts"
     }
   ],
-  "functions": {
-    "src/index.ts": {
-      "maxDuration": 10,
-      "memory": 1024
-    }
-  },
   "env": {
     "NODE_ENV": "production"
   }
