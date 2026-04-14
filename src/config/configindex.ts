@@ -1,20 +1,6 @@
-// config/index.ts
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// 加载 .env 文件
-const envPath = path.resolve(__dirname, '../../.env');
-const result = dotenv.config({ path: envPath });
-
-if (result.error) {
-  console.warn('⚠️ 未找到 .env 文件，使用系统环境变量');
-} else {
-  console.log('✅ 已加载 .env 配置文件');
-}
+// src/config/index.ts
+// 注意：Vercel 环境变量通过 process.env 自动注入
+// 本地开发时可使用 dotenv
 
 export interface Config {
   supabase: {
@@ -58,20 +44,19 @@ export const config: Config = {
   }
 };
 
-// 验证配置
 export function validateConfig(): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   
   const requiredConfigs = [
-    { path: 'supabase.url', value: config.supabase.url, name: 'SUPABASE_URL' },
-    { path: 'supabase.anonKey', value: config.supabase.anonKey, name: 'SUPABASE_ANON_KEY' },
-    { path: 'wework.corpId', value: config.wework.corpId, name: 'WEWORK_CORP_ID' },
-    { path: 'wework.corpSecret', value: config.wework.corpSecret, name: 'WEWORK_CORP_SECRET' },
-    { path: 'wework.agentId', value: config.wework.agentId, name: 'WEWORK_AGENT_ID' },
-    { path: 'wework.token', value: config.wework.token, name: 'WEWORK_TOKEN' },
-    { path: 'wework.encodingAESKey', value: config.wework.encodingAESKey, name: 'WEWORK_ENCODING_AES_KEY' },
-    { path: 'tencent.secretId', value: config.tencent.secretId, name: 'TENCENT_SECRET_ID' },
-    { path: 'tencent.secretKey', value: config.tencent.secretKey, name: 'TENCENT_SECRET_KEY' },
+    { value: config.supabase.url, name: 'SUPABASE_URL' },
+    { value: config.supabase.anonKey, name: 'SUPABASE_ANON_KEY' },
+    { value: config.wework.corpId, name: 'WEWORK_CORP_ID' },
+    { value: config.wework.corpSecret, name: 'WEWORK_CORP_SECRET' },
+    { value: config.wework.agentId, name: 'WEWORK_AGENT_ID' },
+    { value: config.wework.token, name: 'WEWORK_TOKEN' },
+    { value: config.wework.encodingAESKey, name: 'WEWORK_ENCODING_AES_KEY' },
+    { value: config.tencent.secretId, name: 'TENCENT_SECRET_ID' },
+    { value: config.tencent.secretKey, name: 'TENCENT_SECRET_KEY' },
   ];
   
   for (const cfg of requiredConfigs) {
@@ -80,7 +65,6 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
     }
   }
   
-  // 验证 EncodingAESKey 长度
   if (config.wework.encodingAESKey && config.wework.encodingAESKey.length !== 43) {
     errors.push(`WEWORK_ENCODING_AES_KEY 长度应为43位，当前为${config.wework.encodingAESKey.length}位`);
   }
@@ -89,14 +73,4 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
     valid: errors.length === 0,
     errors
   };
-}
-
-// 开发环境下的配置警告
-if (process.env.NODE_ENV !== 'production') {
-  const validation = validateConfig();
-  if (!validation.valid) {
-    console.warn('⚠️ 配置验证失败（开发模式）：');
-    validation.errors.forEach(err => console.warn(`  - ${err}`));
-    console.warn('部分功能可能无法正常工作');
-  }
 }

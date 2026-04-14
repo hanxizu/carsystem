@@ -3,22 +3,26 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "NODE_ENV=development tsx watch src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "NODE_ENV=production node dist/index.js",
+    "start": "cross-env NODE_ENV=production node dist/index.js",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.14",
     "@supabase/supabase-js": "^2.39.0",
     "@wecom/crypto": "^1.0.1",
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
     "express": "^5.2.1",
-    "hono": "^3.12.12"
+    "hono": "^4.10.7",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^20.0.0",
+    "@types/xml2js": "^0.4.14",
+    "cross-env": "^7.0.3",
     "tsx": "^4.7.0",
     "typescript": "^5.0.0"
   },
