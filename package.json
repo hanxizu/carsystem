@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "@wecom/crypto": "^1.0.1",
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
     "hono": "^3.12.12"
