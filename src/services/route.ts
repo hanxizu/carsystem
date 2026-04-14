@@ -1,4 +1,4 @@
-import { TaskData } from '../types/index';
+import { TaskData } from '../types/typesindex';
 import { extractCityFromPlate } from '../utils/helpers';
 import { supabase } from '../db/supabase';
 class RouteService {

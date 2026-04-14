@@ -1,5 +1,5 @@
 import { supabase } from '../db/supabase';
-import { TaskData, SessionData } from '../types/index';
+import { TaskData, SessionData } from '../types/typesindex';
 import { generateTaskId, detectVehicleType, detectOperationType, detectBusinessType } from '../utils/helpers';
 class TaskService {
   async createTask(session: SessionData): Promise<string> {

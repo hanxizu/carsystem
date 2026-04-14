@@ -1,5 +1,5 @@
 
-import { TaskData } from "../types/index";
+import { TaskData } from "../types/typesindex";
 
 
 

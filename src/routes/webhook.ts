@@ -3,7 +3,7 @@ import { weworkService } from '../services/wework';
 import { ocrService } from '../services/ocr';
 import { taskService } from '../services/task';
 import { routeService } from '../services/route';
-import { SessionData } from '../types/index';
+import { SessionData } from '../types/typesindex';
 
 const app = express();
 
